@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Stroopテスト（高精度＋全画面）</title>
+<style>
+body {
+  font-family: sans-serif;
+  text-align: center;
+  margin-top: 50px;
+}
+#word {
+  font-size: 48px;
+  margin: 30px;
+}
+#timer {
+  font-size: 24px;
+  color: red;
+}
+button {
+  font-size: 20px;
+  margin: 10px;
+}
+</style>
+</head>
+<body>
+
+<h1>Stroopテスト</h1>
+<p>「文字ではなく色」を選んでください</p>
+
+<div id="timer">残り時間：60秒</div>
+<div id="word">スタートを押してください</div>
+
+<div>
+  <button id="red">赤</button>
+  <button id="blue">青</button>
+  <button id="green">緑</button>
+  <button id="yellow">黄</button>
+</div>
+
+<br>
+<button id="startBtn">スタート</button>
+
+<script>
+
+const texts = ["あか","あお","みどり","きいろ"];
+const colors = ["red","blue","green","yellow"];
+
+let current;
+let startTime;
+let isWaiting = false;
+let isRunning = false;
+
+let totalCount = 0;
+let correctCount = 0;
+
+let timeLimit = 60;
+let timerInterval;
+
+// ✅ スタート
+document.getElementById("startBtn").addEventListener("click", () => {
+
+  // ✅ 全画面化（ここが追加ポイント）
+  if (document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen();
+  }
+
+  totalCount = 0;
+  correctCount = 0;
+
+  isRunning = true;
+
+  nextQuestion();
+
+  let remaining = timeLimit;
+
+  timerInterval = setInterval(() => {
+    remaining--;
+    document.getElementById("timer").textContent = "残り時間：" + remaining + "秒";
+
+    if (remaining <= 0) {
+      clearInterval(timerInterval);
+      endTest();
+    }
+  }, 1000);
+});
+
+// ✅ 問題生成（描画同期）
+function nextQuestion() {
+  const randomText = texts[Math.floor(Math.random() * texts.length)];
+  const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+  current = {
+    text: randomText,
+    color: randomColor
+  };
+
+  const wordDiv = document.getElementById("word");
+
+  isWaiting = true;
+
+  requestAnimationFrame(() => {
+    wordDiv.textContent = current.text;
+    wordDiv.style.color = current.color;
+
+    startTime = performance.now();
+    isWaiting = false;
+  });
+}
+
+// ✅ 回答処理
+function handleAnswer(ans) {
+  if (!isRunning) return;
+  if (isWaiting) return;
+
+  const correct = (ans === current.color);
+
+  totalCount++;
+  if (correct) correctCount++;
+
+  nextQuestion();
+}
+
+// ✅ タッチ＆クリック対応
+["red","blue","green","yellow"].forEach(color => {
+  const btn = document.getElementById(color);
+
+  btn.addEventListener("touchstart", () => handleAnswer(color));
+  btn.addEventListener("click", () => handleAnswer(color));
+});
+
+// ✅ 終了処理
+function endTest() {
+  isRunning = false;
+  document.getElementById("word").textContent = "終了！";
+
+  const accuracy = totalCount > 0
+    ? ((correctCount / totalCount) * 100).toFixed(1)
+    : 0;
+
+  let csv = "項目,値\n";
+  csv += "回答数," + totalCount + "\n";
+  csv += "正解数," + correctCount + "\n";
+  csv += "正答率," + accuracy + "%\n";
+
+  const now = new Date();
+  const fileName =
+    now.getFullYear() +
+    String(now.getMonth()+1).padStart(2,"0") +
+    String(now.getDate()).padStart(2,"0") + "_" +
+    String(now.getHours()).padStart(2,"0") +
+    String(now.getMinutes()).padStart(2,"0");
+
+  const bom = "\uFEFF";
+  const blob = new Blob([bom + csv], {type:"text/csv"});
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "stroop_" + fileName + ".csv";
+  link.click();
+}
+
+</script>
+
+</body>
+</html>
